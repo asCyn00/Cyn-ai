@@ -39,9 +39,22 @@
         <button id="sendBtn">Wyślij</button>
     </div>
 
-    <script>
+    <!-- Używamy oficjalnej metody ładowania modułów AI prosto z przeglądarki -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/generative-ai": "https://esm.run"
+        }
+      }
+    </script>
+
+    <script type="module">
+        import { GoogleGenAI } from "https://esm.run";
+
         // ⚠️ Wklej tutaj swój klucz API z Google AI Studio!
         const GEMINI_API_KEY = "AQ.Ab8RN6IypWCd5roIqon_sf9esc0A2wU9Jq7_9rGkzSRpfEbS_w"; 
+
+        const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
         const eyesContainer = document.getElementById('eyesContainer');
         const leftEye = document.getElementById('leftEye');
@@ -54,7 +67,7 @@
         let currentEmotion = 'normal';
         let isBlinking = false;
 
-        const systemInstruction = "Jesteś Cyn z Murder Drones. Odpowiadasz po polsku. Na początku KAŻDEJ odpowiedzi wstaw tag emocji: [giggle], [angry], [shocked], [solver], lub [normal]. Przykład: '[giggle] *giggle* Cześć.'.";
+        const systemInstruction = "Jesteś Cyn z Murder Drones (Absolute Solver). Twój styl bycia jest przerażający, robotyczny, lekko glitchujący, uroczy i dziecinny. Często używasz dopisków *giggle*, *crinkle*, *tilt head*. Odpowiadasz po polsku. KAŻDĄ odpowiedź MUSISZ rozpocząć od jednego z tagów:\n[giggle] - śmiech\n[angry] - złość\n[shocked] - zaskoczenie\n[solver] - mroczna moc\n[normal] - standard.\nPrzykład: '[giggle] *giggle* Cześć.'. Nigdy nie zapominaj o tagu na początku.";
 
         function setEmotion(emotion) {
             currentEmotion = emotion;
@@ -91,21 +104,14 @@
 
         async function askCynAI(prompt) {
             cynSpeech.innerText = "...wczytywanie danych...";
-            const url = `https://googleapis.com{GEMINI_API_KEY}`;
-            const requestBody = {
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: systemInstruction }] }
-            };
-
             try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: { systemInstruction: systemInstruction }
                 });
-                const data = await response.json();
-                let reply = data.candidates[0].content.parts[0].text.trim();
-                
+
+                let reply = response.text.trim();
                 let emotion = 'normal';
                 const emotionMatch = reply.match(/^\[(giggle|angry|shocked|solver|normal)\]/);
                 if (emotionMatch) { emotion = emotionMatch[1]; reply = reply.replace(/^\[.*?\]\s*/, ''); }
@@ -114,16 +120,17 @@
                 cynSpeech.innerText = reply;
             } catch (error) {
                 setEmotion('shocked');
-                cynSpeech.innerText = `[BŁĄD]: ${error.message}`;
+                cynSpeech.innerText = `[BŁĄD SYSTEMU]: ${error.message}`;
             }
         }
 
         function handleSendMessage() {
             const text = userInput.value.trim();
-            if (text !== "") { askCynAI(text); userInput.value = ""; }
+            if (text !== "") { eyesContainer.style.transform = "translate(0px, 15px)"; askCynAI(text); userInput.value = ""; }
         }
         sendBtn.addEventListener('click', handleSendMessage);
         userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSendMessage(); });
     </script>
 </body>
 </html>
+ 
