@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyn AI Assistant</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #000000; font-family: 'Courier New', Courier, monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: radial-gradient(circle, #050505 0%, #000000 100%); padding: 20px; }
+        .system-overlay { position: absolute; top: 20px; left: 20px; color: rgba(255, 204, 0, 0.4); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; }
+        .eyes-container { display: flex; gap: 70px; transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1); margin-bottom: 40px; }
+        .eye { width: 75px; height: 55px; background-color: #ffcc00; border-radius: 50%; box-shadow: 0 0 35px #ffcc00, 0 0 15px #ff9900; transition: all 0.2s ease-in-out; }
+        .cyn-speech-bubble { color: #ffcc00; font-size: 16px; text-align: center; max-width: 80%; min-height: 40px; line-height: 1.4; text-shadow: 0 0 8px rgba(255, 204, 0, 0.6); word-wrap: break-word; }
+        .eye.blink { height: 0px !important; min-height: 0px !important; box-shadow: none; }
+        .eye.giggle { border-radius: 50%; clip-path: inset(0% 0% 40% 0%); transform: scaleY(1.2); }
+        .left-eye.angry { transform: rotate(15deg) scaleY(0.8); border-radius: 50% 50% 20% 20%; }
+        .right-eye.angry { transform: rotate(-15deg) scaleY(0.8); border-radius: 50% 50% 20% 20%; }
+        .eye.shocked { width: 50px; height: 50px; border-radius: 50%; box-shadow: 0 0 45px #ffcc00; }
+        .eye.solver { border-radius: 0%; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); background-color: #ff3300; box-shadow: 0 0 40px #ff3300, 0 0 15px #ff0000; }
+        .chat-container { height: auto; background-color: #0d0d0d; display: flex; padding: 15px 12px 25px 12px; gap: 10px; border-top: 2px solid #1a1a1a; position: relative; z-index: 10; }
+        #userInput { flex: 1; background-color: #050505; border: 1px solid #ffcc00; border-radius: 8px; color: #ffcc00; padding: 12px 15px; font-size: 16px; outline: none; font-family: 'Courier New', Courier, monospace; }
+        #userInput::placeholder { color: #665200; }
+        #sendBtn { background-color: #ffcc00; color: #000; border: none; border-radius: 8px; padding: 0 20px; font-weight: bold; font-size: 16px; cursor: pointer; font-family: 'Courier New', Courier, monospace; }
+        #sendBtn:active { background-color: #cca300; }
+    </style>
+</head>
+<body>
+    <div class="screen">
+        <div class="system-overlay" id="systemOverlay">SYSTEM: IDLE</div>
+        <div class="eyes-container" id="eyesContainer">
+            <div class="eye left-eye" id="leftEye"></div>
+            <div class="eye right-eye" id="rightEye"></div>
+        </div>
+        <div class="cyn-speech-bubble" id="cynSpeech">...</div>
+    </div>
+    <div class="chat-container">
+        <input type="text" id="userInput" placeholder="Napisz do Cyn... *giggle*">
+        <button id="sendBtn">Wyślij</button>
+    </div>
+
+    <script>
+        // ⚠️ Wklej tutaj swój klucz API z Google AI Studio!
+        const GEMINI_API_KEY = "AQ.Ab8RN6IypWCd5roIqon_sf9esc0A2wU9Jq7_9rGkzSRpfEbS_w"; 
+
+        const eyesContainer = document.getElementById('eyesContainer');
+        const leftEye = document.getElementById('leftEye');
+        const rightEye = document.getElementById('rightEye');
+        const systemOverlay = document.getElementById('systemOverlay');
+        const cynSpeech = document.getElementById('cynSpeech');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        let currentEmotion = 'normal';
+        let isBlinking = false;
+
+        const systemInstruction = "Jesteś Cyn z Murder Drones. Odpowiadasz po polsku. Na początku KAŻDEJ odpowiedzi wstaw tag emocji: [giggle], [angry], [shocked], [solver], lub [normal]. Przykład: '[giggle] *giggle* Cześć.'.";
+
+        function setEmotion(emotion) {
+            currentEmotion = emotion;
+            [leftEye, rightEye].forEach(eye => { eye.className = 'eye'; });
+            if (emotion === 'giggle') { leftEye.classList.add('giggle'); rightEye.classList.add('giggle'); systemOverlay.innerText = "SYSTEM: GIGGLE.EXE"; }
+            else if (emotion === 'angry') { leftEye.classList.add('angry'); rightEye.classList.add('angry'); systemOverlay.innerText = "STATUS: ANGRY_MODE"; }
+            else if (emotion === 'shocked') { leftEye.classList.add('shocked'); rightEye.classList.add('shocked'); systemOverlay.innerText = "WARNING: UNEXPECTED_INPUT"; }
+            else if (emotion === 'solver') { leftEye.classList.add('solver'); rightEye.classList.add('solver'); systemOverlay.innerText = "ABSOLUTE SOLVER: ACTIVE"; }
+            else { leftEye.classList.add('left-eye'); rightEye.classList.add('right-eye'); systemOverlay.innerText = "SYSTEM: IDLE"; }
+        }
+
+        function blinkEyes() {
+            if (currentEmotion !== 'solver' && currentEmotion !== 'shocked' && !isBlinking) {
+                isBlinking = true; leftEye.classList.add('blink'); rightEye.classList.add('blink');
+                setTimeout(() => { leftEye.classList.remove('blink'); rightEye.classList.remove('blink'); isBlinking = false; }, 140);
+            }
+            setTimeout(blinkEyes, Math.random() * 4000 + 2000);
+        }
+        setTimeout(blinkEyes, 2000);
+
+        function lookAround() {
+            if (currentEmotion !== 'solver' && currentEmotion !== 'angry') {
+                const randomX = Math.floor(Math.random() * 30) - 15;
+                const randomY = Math.floor(Math.random() * 16) - 8;
+                eyesContainer.style.transform = `translate(${randomX}px, ${randomY}px)`;
+            } else if (currentEmotion === 'solver') {
+                const glitchX = Math.floor(Math.random() * 6) - 3;
+                const glitchY = Math.floor(Math.random() * 6) - 3;
+                eyesContainer.style.transform = `translate(${glitchX}px, ${glitchY}px)`;
+            }
+            setTimeout(lookAround, currentEmotion === 'solver' ? 50 : (Math.random() * 2000 + 1500));
+        }
+        setTimeout(lookAround, 1000);
+
+        async function askCynAI(prompt) {
+            cynSpeech.innerText = "...wczytywanie danych...";
+            const url = `https://googleapis.com{GEMINI_API_KEY}`;
+            const requestBody = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                const data = await response.json();
+                let reply = data.candidates[0].content.parts[0].text.trim();
+                
+                let emotion = 'normal';
+                const emotionMatch = reply.match(/^\[(giggle|angry|shocked|solver|normal)\]/);
+                if (emotionMatch) { emotion = emotionMatch[1]; reply = reply.replace(/^\[.*?\]\s*/, ''); }
+
+                setEmotion(emotion);
+                cynSpeech.innerText = reply;
+            } catch (error) {
+                setEmotion('shocked');
+                cynSpeech.innerText = `[BŁĄD]: ${error.message}`;
+            }
+        }
+
+        function handleSendMessage() {
+            const text = userInput.value.trim();
+            if (text !== "") { askCynAI(text); userInput.value = ""; }
+        }
+        sendBtn.addEventListener('click', handleSendMessage);
+        userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSendMessage(); });
+    </script>
+</body>
+</html>
